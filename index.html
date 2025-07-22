@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ครูคณิตศาสตร์ AI - เซต</title>
+    <style>
+        /* General Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Main container for the chat app */
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header section */
+        .chat-header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+            flex-shrink: 0;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header-logo {
+            height: 30px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Area where messages are displayed */
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+        }
+
+        /* Individual message styling */
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .message.user { justify-content: flex-end; }
+        .message.bot { justify-content: flex-start; }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+        }
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .message.error .message-content {
+             color: #dc3545;
+             background: #f8d7da !important;
+             border: 1px solid #f5c6cb !important;
+        }
+
+        /* Status message area */
+        .status-area {
+            padding: 5px 20px;
+            background: #f8f9fa;
+            text-align: center;
+            color: #6B7280;
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        /* Input form area */
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .chat-input input:focus { border-color: #4CAF50; }
+        .chat-input input:disabled { background-color: #f1f1f1; }
+
+        .chat-input button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+        .chat-input button:hover:not(:disabled) { background: #45a049; }
+        .chat-input button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Loading indicator styling */
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            font-style: italic;
+        }
+        .loading-dots { display: inline-flex; gap: 2px; }
+        .loading-dot {
+            width: 6px;
+            height: 6px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite both;
+        }
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        /* Example question buttons */
+        .example-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .example-btn {
+            background: #f0f8ff;
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+            padding: 8px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .example-btn:hover {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .chat-container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+            .message-content { max-width: 85%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>
+                <img src="https://www.jobbkk.com/upload/employer/08/FF8/030FF8/images/200696.webp" alt="Inteltion Logo" class="header-logo">
+                <span>ครูคณิตศาสตร์ AI</span>
+            </h1>
+            <p>ถามเรื่องเซตได้เลยค่ะ </p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    สวัสดีค่ะ! ฉันเป็นครูคณิตศาสตร์ AI ที่พร้อมช่วยตอบคำถามเรื่องเซต<br><br>
+                    ลองถามคำถามเหล่านี้ได้เลยค่ะ:
+                </div>
+            </div>
+            <div class="example-questions">
+                <button class="example-btn" onclick="askExample('เซตคืออะไร?')">เซตคืออะไร?</button>
+                <button class="example-btn" onclick="askExample('ยกตัวอย่างเซตหน่อย')">ยกตัวอย่างเซต</button>
+                <button class="example-btn" onclick="askExample('เซตว่างคืออะไร?')">เซตว่างคืออะไร?</button>
+                <button class="example-btn" onclick="askExample('การรวมเซตทำอย่างไร?')">การรวมเซต</button>
+            </div>
+        </div>
+        
+        <div class="status-area" id="statusArea">
+            <p id="statusText">กำลังโหลดการตั้งค่า...</p>
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="userInput" placeholder="พิมพ์คำถามเรื่องเซตที่นี่..." maxlength="500" disabled>
+            <button id="sendBtn" onclick="sendMessage()" disabled>➤</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusText = document.getElementById('statusText');
+        const statusArea = document.getElementById('statusArea');
+
+        // State variables
+        let chatHistory = [];
+        let apiKey = '';
+        let apiUrl = '';
+        let isLocal = window.location.protocol === 'file:';
+
+        // --- Initialization: Securely fetch config from backend ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (isLocal) {
+                // --- LOCAL TEST MODE ---
+                console.warn("Running in local test mode. API calls are disabled.");
+                statusText.textContent = 'โหมดทดสอบ (Local): ไม่ได้เชื่อมต่อ API';
+                statusText.style.color = '#d97706'; // Amber color
+
+                // Enable UI for layout testing
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                
+                addMessage('คุณกำลังอยู่ในโหมดทดสอบ (Local Test Mode) การส่งข้อความไปยัง AI จะไม่ทำงานจนกว่าจะนำขึ้นเซิร์ฟเวอร์ Azure', 'bot error');
+            } else {
+                // --- LIVE MODE (ON AZURE) ---
+                try {
+                    // Fetch config from the Azure Function API endpoint
+                    const response = await fetch('/api/get-config');
+                    if (!response.ok) {
+                        throw new Error(`ไม่สามารถโหลดการตั้งค่า (Status: ${response.status})`);
+                    }
+                    const config = await response.json();
+                    apiKey = config.apiKey;
+                    apiUrl = config.apiUrl;
+
+                    if (!apiKey || !apiUrl) {
+                        throw new Error('การตั้งค่า API Key หรือ URL ไม่ถูกต้องจากเซิร์ฟเวอร์');
+                    }
+
+                    // Enable UI now that we have the config
+                    statusText.textContent = 'พร้อมใช้งาน';
+                    userInput.disabled = false;
+                    sendBtn.disabled = false;
+                    setTimeout(() => { statusArea.style.display = 'none'; }, 2000);
+
+                } catch (error) {
+                    console.error("Initialization failed:", error);
+                    statusText.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
+                    statusText.style.color = '#dc3545';
+                    addMessage(`ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ${error.message}. กรุณาตรวจสอบว่าไฟล์ API function ถูกติดตั้งอย่างถูกต้อง`, 'bot error');
+                }
+            }
+        });
+
+        // --- Event Listeners ---
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function askExample(question) {
+            userInput.value = question;
+            sendMessage();
+        }
+
+        // --- Core Functions ---
+        async function sendMessage() {
+            const question = userInput.value.trim();
+            if (!question || sendBtn.disabled) return;
+
+            addMessage(question, 'user');
+            userInput.value = '';
+            
+            // If in local mode, just simulate a response and exit
+            if (isLocal) {
+                sendBtn.disabled = true;
+                const loadingId = addLoadingMessage();
+                setTimeout(() => {
+                    removeMessage(loadingId);
+                    addMessage('คำตอบจำลอง (โหมดทดสอบ): API ไม่ทำงานในโหมด local', 'bot');
+                    sendBtn.disabled = false;
+                }, 1000);
+                return;
+            }
+
+            // --- Live Mode Logic ---
+            sendBtn.disabled = true;
+            const loadingId = addLoadingMessage();
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        chat_history: chatHistory,
+                        question: question
+                    })
+                });
+
+                removeMessage(loadingId);
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API ตอบกลับผิดพลาด (${response.status}): ${errorBody}`);
+                }
+
+                const result = await response.json();
+                const botAnswer = result.answer || JSON.stringify(result);
+
+                addMessage(botAnswer, 'bot');
+
+                chatHistory.push({
+                    "inputs": { "question": question },
+                    "outputs": { "answer": botAnswer }
+                });
+
+            } catch (error) {
+                console.error('Error calling Azure ML endpoint:', error);
+                removeMessage(loadingId);
+                addMessage('ขออภัยค่ะ เกิดข้อผิดพลาด: ' + error.message, 'bot error');
+            } finally {
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const loadingId = 'loading_' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'message bot';
+            loadingDiv.innerHTML = `
+                <div class="message-content loading">
+                    กำลังคิด...
+                    <div class="loading-dots">
+                        <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+                    </div>
+                </div>`;
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return loadingId;
+        }
+
+        function removeMessage(messageId) {
+            const element = document.getElementById(messageId);
+            if (element) element.remove();
+        }
+    </script>
+</body>
+</html>
