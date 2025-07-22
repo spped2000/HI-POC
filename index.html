@@ -112,6 +112,22 @@
             font-size: 12px;
         }
 
+        /* Debug info area */
+        .debug-info {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .debug-info.show {
+            display: block;
+        }
+
         /* Input form area */
         .chat-input {
             display: flex;
@@ -258,9 +274,8 @@
 
         // State variables
         let chatHistory = [];
-        let apiKey = '';
-        let apiUrl = '';
         let isLocal = window.location.protocol === 'file:';
+        let debugMode = true; // Enable debug mode for troubleshooting
 
         // --- Initialization: Securely fetch config from backend ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -278,20 +293,16 @@
             } else {
                 // --- LIVE MODE (ON AZURE) ---
                 try {
-                    // Fetch config from the Azure Function API endpoint
+                    // Test that the API is accessible
                     const response = await fetch('/api/get-config');
                     if (!response.ok) {
                         throw new Error(`ไม่สามารถโหลดการตั้งค่า (Status: ${response.status})`);
                     }
-                    const config = await response.json();
-                    apiKey = config.apiKey;
-                    apiUrl = config.apiUrl;
+                    
+                    // We don't need to get the config anymore since we're using proxy
+                    console.log('API is accessible');
 
-                    if (!apiKey || !apiUrl) {
-                        throw new Error('การตั้งค่า API Key หรือ URL ไม่ถูกต้องจากเซิร์ฟเวอร์');
-                    }
-
-                    // Enable UI now that we have the config
+                    // Enable UI
                     statusText.textContent = 'พร้อมใช้งาน';
                     userInput.disabled = false;
                     sendBtn.disabled = false;
@@ -301,7 +312,7 @@
                     console.error("Initialization failed:", error);
                     statusText.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
                     statusText.style.color = '#dc3545';
-                    addMessage(`ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ${error.message}. กรุณาตรวจสอบว่าไฟล์ API function ถูกติดตั้งอย่างถูกต้อง`, 'bot error');
+                    addMessage(`ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ${error.message}`, 'bot error');
                 }
             }
         });
@@ -344,30 +355,76 @@
             const loadingId = addLoadingMessage();
 
             try {
-                const response = await fetch(apiUrl, {
+                // Prepare request body
+                const requestBody = {
+                    chat_history: chatHistory,
+                    question: question
+                };
+
+                if (debugMode) {
+                    console.log('Sending request to: /api/chat');
+                    console.log('Request body:', requestBody);
+                }
+
+                // Use the proxy endpoint instead of calling ML directly
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        chat_history: chatHistory,
-                        question: question
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 removeMessage(loadingId);
 
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`API ตอบกลับผิดพลาด (${response.status}): ${errorBody}`);
+                // Get response text for debugging
+                const responseText = await response.text();
+                
+                if (debugMode) {
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
+                    console.log('Response text:', responseText);
                 }
 
-                const result = await response.json();
-                const botAnswer = result.answer || JSON.stringify(result);
+                if (!response.ok) {
+                    // Show detailed error information
+                    let errorMessage = `API Error (${response.status})`;
+                    
+                    if (response.status === 400) {
+                        errorMessage += ': Bad Request - ตรวจสอบรูปแบบข้อมูลที่ส่ง';
+                    } else if (response.status === 401) {
+                        errorMessage += ': Unauthorized - API Key ไม่ถูกต้อง';
+                    } else if (response.status === 403) {
+                        errorMessage += ': Forbidden - ไม่มีสิทธิ์เข้าถึง';
+                    } else if (response.status === 404) {
+                        errorMessage += ': Not Found - URL ของ endpoint ไม่ถูกต้อง';
+                    } else if (response.status === 429) {
+                        errorMessage += ': Too Many Requests - ส่งคำขอมากเกินไป';
+                    } else if (response.status === 500) {
+                        errorMessage += ': Server Error - ปัญหาที่ฝั่ง Azure ML';
+                    }
+                    
+                    if (debugMode && responseText) {
+                        errorMessage += `\n\nรายละเอียด: ${responseText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+
+                // Try to parse JSON response
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse response as JSON:', parseError);
+                    result = { answer: responseText }; // Use raw text if not JSON
+                }
+
+                const botAnswer = result.answer || result.response || result.result || JSON.stringify(result);
 
                 addMessage(botAnswer, 'bot');
 
+                // Update chat history
                 chatHistory.push({
                     "inputs": { "question": question },
                     "outputs": { "answer": botAnswer }
@@ -376,7 +433,17 @@
             } catch (error) {
                 console.error('Error calling Azure ML endpoint:', error);
                 removeMessage(loadingId);
-                addMessage('ขออภัยค่ะ เกิดข้อผิดพลาด: ' + error.message, 'bot error');
+                
+                // Show debug information if available
+                let errorMsg = 'ขออภัยค่ะ เกิดข้อผิดพลาด: ' + error.message;
+                
+                if (debugMode) {
+                    errorMsg += '\n\nDebug Info:\n';
+                    errorMsg += `- API Endpoint: /api/chat\n`;
+                    errorMsg += `- Error Type: ${error.name}`;
+                }
+                
+                addMessage(errorMsg, 'bot error');
             } finally {
                 sendBtn.disabled = false;
                 userInput.focus();
