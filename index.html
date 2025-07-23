@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ครูคณิตศาสตร์ AI - เซต</title>
+    <!-- Include marked.js for better markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* General Styling */
         * {
@@ -95,6 +97,39 @@
             color: #333;
             border: 1px solid #e0e0e0;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Markdown styling within messages */
+        .message-content h1 { font-size: 1.5em; margin: 10px 0; }
+        .message-content h2 { font-size: 1.3em; margin: 10px 0; }
+        .message-content h3 { font-size: 1.1em; margin: 10px 0; }
+        .message-content strong { font-weight: bold; color: #2c3e50; }
+        .message-content em { font-style: italic; }
+        .message-content ul, .message-content ol { 
+            margin: 10px 0; 
+            padding-left: 20px;
+        }
+        .message-content li { 
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        .message-content code {
+            background: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .message-content pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .message-content pre code {
+            background: none;
+            padding: 0;
         }
         .message.error .message-content {
              color: #dc3545;
@@ -248,7 +283,6 @@
             </div>
             <div class="example-questions">
                 <button class="example-btn" onclick="askExample('เซตคืออะไร?')">เซตคืออะไร?</button>
-                <button class="example-btn" onclick="askExample('ยกตัวอย่างเซตหน่อย')">ยกตัวอย่างเซต</button>
                 <button class="example-btn" onclick="askExample('เซตว่างคืออะไร?')">เซตว่างคืออะไร?</button>
                 <button class="example-btn" onclick="askExample('การรวมเซตทำอย่างไร?')">การรวมเซต</button>
             </div>
@@ -456,11 +490,64 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            // Convert markdown to HTML if it's a bot message
+            if (type.includes('bot') && typeof marked !== 'undefined') {
+                // Use marked.js if available
+                contentDiv.innerHTML = marked.parse(content);
+            } else if (type.includes('bot')) {
+                // Fallback to basic parsing
+                contentDiv.innerHTML = parseMarkdown(content);
+            } else {
+                // For user messages, just replace newlines
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            }
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function parseMarkdown(text) {
+            // Basic markdown parsing
+            let html = text;
+            
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            
+            // Bold
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Italic
+            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Lists
+            html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, function(match) {
+                return '<ol>' + match + '</ol>';
+            });
+            
+            // Bullet points
+            html = html.replace(/^[\*\-]\s+(.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)(?![^<]*<\/ol>)/s, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            
+            // Code blocks
+            html = html.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Clean up multiple breaks
+            html = html.replace(/(<br>){3,}/g, '<br><br>');
+            
+            return html;
         }
 
         function addLoadingMessage() {
